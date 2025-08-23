@@ -3,7 +3,10 @@
 		<div class="col-lg-6">
 			<h1 class="display-6 fw-bold mb-3">Payroll Management System</h1>
 			<p class="lead text-muted">Manage employees, departments, pay periods, and generate payslips efficiently.</p>
-			<a href="/index.php?page=login" class="btn btn-primary">Go to Login</a>
+			<div class="d-flex gap-2">
+				<a href="/index.php?page=login" class="btn btn-primary">Login</a>
+				<a href="/index.php?page=register" class="btn btn-outline-primary">Register (Employee)</a>
+			</div>
 		</div>
 		<div class="col-lg-6 d-none d-lg-block">
 			<div class="card shadow-sm">

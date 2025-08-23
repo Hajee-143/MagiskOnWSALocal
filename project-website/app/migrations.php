@@ -6,7 +6,13 @@ function run_migrations(PDO $db): void {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL DEFAULT "admin"
+		role TEXT NOT NULL DEFAULT "employee",
+		email TEXT,
+		first_name TEXT,
+		last_name TEXT,
+		code TEXT UNIQUE,
+		bank_account TEXT,
+		ifsc TEXT
 	)');
 
 	$db->exec('CREATE TABLE IF NOT EXISTS departments (
@@ -52,12 +58,61 @@ function run_migrations(PDO $db): void {
 		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
 	)');
 
+	// Attendance
+	$db->exec('CREATE TABLE IF NOT EXISTS attendance (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		employee_id INTEGER NOT NULL,
+		date TEXT NOT NULL,
+		status TEXT NOT NULL, -- present, absent, remote, etc
+		latitude REAL,
+		longitude REAL,
+		photo_path TEXT,
+		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
+	)');
+
+	// Leave requests
+	$db->exec('CREATE TABLE IF NOT EXISTS leaves (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		employee_id INTEGER NOT NULL,
+		start_date TEXT NOT NULL,
+		end_date TEXT NOT NULL,
+		reason TEXT,
+		status TEXT NOT NULL DEFAULT "pending", -- pending, approved, rejected
+		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
+	)');
+
+	// Holidays
+	$db->exec('CREATE TABLE IF NOT EXISTS holidays (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		date TEXT NOT NULL,
+		title TEXT NOT NULL,
+		description TEXT
+	)');
+
+	// Payheads and assignments
+	$db->exec('CREATE TABLE IF NOT EXISTS payheads (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		type TEXT NOT NULL, -- earning or deduction
+		amount REAL NOT NULL DEFAULT 0
+	)');
+	$db->exec('CREATE TABLE IF NOT EXISTS employee_payheads (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		employee_id INTEGER NOT NULL,
+		payhead_id INTEGER NOT NULL,
+		amount REAL NOT NULL,
+		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+		FOREIGN KEY(payhead_id) REFERENCES payheads(id) ON DELETE CASCADE
+	)');
+
 	$hasAdmin = (int)$db->query('SELECT COUNT(*) AS c FROM users')->fetch()['c'] ?? 0;
 	if ($hasAdmin === 0) {
 		$username = 'admin';
 		$passwordHash = password_hash('admin', PASSWORD_DEFAULT);
-		$stmt = $db->prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)');
-		$stmt->execute([$username, $passwordHash, 'admin']);
+		$stmt = $db->prepare('INSERT INTO users (username, password_hash, role, email, first_name, last_name, code) VALUES (?, ?, ?, ?, ?, ?, ?)');
+		$stmt->execute([$username, $passwordHash, 'admin', 'admin@example.com', 'Admin', 'User', 'ADM001']);
 	}
 }
 

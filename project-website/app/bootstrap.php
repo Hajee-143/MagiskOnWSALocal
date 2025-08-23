@@ -15,10 +15,14 @@ if (!is_dir(DATA_PATH)) {
 	mkdir(DATA_PATH, 0777, true);
 }
 
+// Load config
+$CONFIG = require APP_PATH . '/config.php';
+
 require_once APP_PATH . '/db.php';
 require_once APP_PATH . '/migrations.php';
 require_once APP_PATH . '/auth.php';
 require_once APP_PATH . '/util.php';
+require_once APP_PATH . '/mail.php';
 
 $db = get_database_connection();
 run_migrations($db);

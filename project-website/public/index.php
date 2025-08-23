@@ -4,7 +4,7 @@ declare(strict_types=1);
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
-$allowedPages = ['home', 'login', 'dashboard', 'logout', 'employees', 'departments', 'pay_periods', 'payroll', 'payslips'];
+$allowedPages = ['home', 'login', 'register', 'dashboard', 'logout', 'employees', 'departments', 'pay_periods', 'payroll', 'payslips', 'attendance', 'leaves', 'holidays', 'payheads', 'profile', 'attendance_export'];
 $rawPage = $_GET['page'] ?? 'home';
 $page = strtolower(preg_replace('/[^a-z]/', '', (string)$rawPage));
 if ($page === '') {
