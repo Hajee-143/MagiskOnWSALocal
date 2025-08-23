@@ -2,29 +2,34 @@
 declare(strict_types=1);
 
 function column_exists(PDO $db, string $table, string $column): bool {
-	$stmt = $db->prepare('PRAGMA table_info(' . $table . ')');
-	$rows = $stmt->execute() ? $stmt->fetchAll() : [];
-	foreach ($rows as $row) {
-		if (isset($row['name']) && $row['name'] === $column) {
-			return true;
-		}
+	try {
+		$stmt = $db->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+		$stmt->execute([$table, $column]);
+		return (bool)$stmt->fetchColumn();
+	} catch (Throwable $e) {
+		return false;
 	}
-	return false;
 }
 
 function run_migrations(PDO $db): void {
 	$db->exec('CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		username TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL DEFAULT "employee",
-		email TEXT,
-		first_name TEXT,
-		last_name TEXT,
-		code TEXT UNIQUE,
-		bank_account TEXT,
-		ifsc TEXT
-	)');
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		username VARCHAR(191) NOT NULL UNIQUE,
+		password_hash VARCHAR(255) NOT NULL,
+		role ENUM("admin","employee") NOT NULL DEFAULT "employee",
+		email VARCHAR(191) NULL,
+		first_name VARCHAR(191) NULL,
+		last_name VARCHAR(191) NULL,
+		code VARCHAR(64) NULL UNIQUE,
+		bank_account VARCHAR(64) NULL,
+		ifsc VARCHAR(32) NULL,
+		dob DATE NULL,
+		phone VARCHAR(32) NULL,
+		address VARCHAR(255) NULL,
+		department_id INT NULL,
+		photo_path VARCHAR(255) NULL,
+		INDEX(department_id)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	// Extend users table for registration fields if missing
 	if (!column_exists($db, 'users', 'dob')) {
@@ -44,9 +49,9 @@ function run_migrations(PDO $db): void {
 	}
 
 	$db->exec('CREATE TABLE IF NOT EXISTS departments (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT UNIQUE NOT NULL
-	)');
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(191) NOT NULL UNIQUE
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 	// Seed departments
 	$defaultDepartments = ["IT", "Sales", "HR", "Finance", "Operations"];
 	foreach ($defaultDepartments as $depName) {
@@ -55,91 +60,91 @@ function run_migrations(PDO $db): void {
 	}
 
 	$db->exec('CREATE TABLE IF NOT EXISTS employees (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		first_name TEXT NOT NULL,
-		last_name TEXT NOT NULL,
-		email TEXT UNIQUE NOT NULL,
-		department_id INTEGER,
-		base_salary REAL NOT NULL DEFAULT 0,
-		allowances REAL NOT NULL DEFAULT 0,
-		deductions REAL NOT NULL DEFAULT 0,
-		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		first_name VARCHAR(191) NOT NULL,
+		last_name VARCHAR(191) NOT NULL,
+		email VARCHAR(191) NOT NULL UNIQUE,
+		department_id INT NULL,
+		base_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+		allowances DECIMAL(12,2) NOT NULL DEFAULT 0,
+		deductions DECIMAL(12,2) NOT NULL DEFAULT 0,
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY(department_id) REFERENCES departments(id) ON DELETE SET NULL
-	)');
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	$db->exec('CREATE TABLE IF NOT EXISTS pay_periods (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		period_start TEXT NOT NULL,
-		period_end TEXT NOT NULL,
-		status TEXT NOT NULL DEFAULT "open"
-	)');
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		period_start DATE NOT NULL,
+		period_end DATE NOT NULL,
+		status ENUM("open","closed") NOT NULL DEFAULT "open"
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	$db->exec('CREATE TABLE IF NOT EXISTS payroll_runs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		pay_period_id INTEGER NOT NULL,
-		run_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		pay_period_id INT NOT NULL,
+		run_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY(pay_period_id) REFERENCES pay_periods(id) ON DELETE CASCADE
-	)');
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	$db->exec('CREATE TABLE IF NOT EXISTS payslips (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		payroll_run_id INTEGER NOT NULL,
-		employee_id INTEGER NOT NULL,
-		gross REAL NOT NULL,
-		deductions REAL NOT NULL,
-		net REAL NOT NULL,
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		payroll_run_id INT NOT NULL,
+		employee_id INT NOT NULL,
+		gross DECIMAL(12,2) NOT NULL,
+		deductions DECIMAL(12,2) NOT NULL,
+		net DECIMAL(12,2) NOT NULL,
 		FOREIGN KEY(payroll_run_id) REFERENCES payroll_runs(id) ON DELETE CASCADE,
 		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
-	)');
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	// Attendance
 	$db->exec('CREATE TABLE IF NOT EXISTS attendance (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		employee_id INTEGER NOT NULL,
-		date TEXT NOT NULL,
-		status TEXT NOT NULL, -- present, absent, remote, etc
-		latitude REAL,
-		longitude REAL,
-		photo_path TEXT,
-		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		employee_id INT NOT NULL,
+		date DATE NOT NULL,
+		status VARCHAR(32) NOT NULL,
+		latitude DOUBLE NULL,
+		longitude DOUBLE NULL,
+		photo_path VARCHAR(255) NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
-	)');
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	// Leave requests
 	$db->exec('CREATE TABLE IF NOT EXISTS leaves (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		employee_id INTEGER NOT NULL,
-		start_date TEXT NOT NULL,
-		end_date TEXT NOT NULL,
-		reason TEXT,
-		status TEXT NOT NULL DEFAULT "pending", -- pending, approved, rejected
-		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		employee_id INT NOT NULL,
+		start_date DATE NOT NULL,
+		end_date DATE NOT NULL,
+		reason VARCHAR(255) NULL,
+		status ENUM("pending","approved","rejected") NOT NULL DEFAULT "pending",
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
-	)');
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	// Holidays
 	$db->exec('CREATE TABLE IF NOT EXISTS holidays (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		date TEXT NOT NULL,
-		title TEXT NOT NULL,
-		description TEXT
-	)');
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		date DATE NOT NULL,
+		title VARCHAR(191) NOT NULL,
+		description VARCHAR(255) NULL
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	// Payheads and assignments
 	$db->exec('CREATE TABLE IF NOT EXISTS payheads (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		type TEXT NOT NULL, -- earning or deduction
-		amount REAL NOT NULL DEFAULT 0
-	)');
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(191) NOT NULL,
+		type ENUM("earning","deduction") NOT NULL,
+		amount DECIMAL(12,2) NOT NULL DEFAULT 0
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 	$db->exec('CREATE TABLE IF NOT EXISTS employee_payheads (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		employee_id INTEGER NOT NULL,
-		payhead_id INTEGER NOT NULL,
-		amount REAL NOT NULL,
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		employee_id INT NOT NULL,
+		payhead_id INT NOT NULL,
+		amount DECIMAL(12,2) NOT NULL,
 		FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE,
 		FOREIGN KEY(payhead_id) REFERENCES payheads(id) ON DELETE CASCADE
-	)');
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
 	$hasAdmin = (int)$db->query('SELECT COUNT(*) AS c FROM users')->fetch()['c'] ?? 0;
 	if ($hasAdmin === 0) {
