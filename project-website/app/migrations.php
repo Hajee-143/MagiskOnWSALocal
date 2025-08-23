@@ -1,6 +1,17 @@
 <?php
 declare(strict_types=1);
 
+function column_exists(PDO $db, string $table, string $column): bool {
+	$stmt = $db->prepare('PRAGMA table_info(' . $table . ')');
+	$rows = $stmt->execute() ? $stmt->fetchAll() : [];
+	foreach ($rows as $row) {
+		if (isset($row['name']) && $row['name'] === $column) {
+			return true;
+		}
+	}
+	return false;
+}
+
 function run_migrations(PDO $db): void {
 	$db->exec('CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15,10 +26,33 @@ function run_migrations(PDO $db): void {
 		ifsc TEXT
 	)');
 
+	// Extend users table for registration fields if missing
+	if (!column_exists($db, 'users', 'dob')) {
+		$db->exec('ALTER TABLE users ADD COLUMN dob TEXT');
+	}
+	if (!column_exists($db, 'users', 'phone')) {
+		$db->exec('ALTER TABLE users ADD COLUMN phone TEXT');
+	}
+	if (!column_exists($db, 'users', 'address')) {
+		$db->exec('ALTER TABLE users ADD COLUMN address TEXT');
+	}
+	if (!column_exists($db, 'users', 'department_id')) {
+		$db->exec('ALTER TABLE users ADD COLUMN department_id INTEGER');
+	}
+	if (!column_exists($db, 'users', 'photo_path')) {
+		$db->exec('ALTER TABLE users ADD COLUMN photo_path TEXT');
+	}
+
 	$db->exec('CREATE TABLE IF NOT EXISTS departments (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT UNIQUE NOT NULL
 	)');
+	// Seed departments
+	$defaultDepartments = ["IT", "Sales", "HR", "Finance", "Operations"];
+	foreach ($defaultDepartments as $depName) {
+		$stmt = $db->prepare('INSERT OR IGNORE INTO departments (name) VALUES (?)');
+		$stmt->execute([$depName]);
+	}
 
 	$db->exec('CREATE TABLE IF NOT EXISTS employees (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,

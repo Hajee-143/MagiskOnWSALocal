@@ -19,6 +19,7 @@
 					<li class="nav-item"><a class="nav-link" href="/index.php?page=logout">Logout</a></li>
 				<?php else: ?>
 					<li class="nav-item"><a class="nav-link" href="/index.php?page=login">Login</a></li>
+					<li class="nav-item"><a class="nav-link" href="/index.php?page=register">Register</a></li>
 				<?php endif; ?>
 			</ul>
 		</div>
