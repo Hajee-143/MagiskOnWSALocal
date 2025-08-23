@@ -1,6 +1,6 @@
 <footer class="border-top mt-5 py-4">
 	<div class="container text-center small text-muted">
-		9 <span id="year"></span> MyProject. All rights reserved.
+		&copy; <span id="year"></span> Payroll. All rights reserved.
 	</div>
 </footer>
 
